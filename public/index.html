@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>血战到底·恶搞四川麻将（联机版）</title>
+<style>
+  :root{--bg:#0a5c2e;--tile:#fffdf5}
+  *{box-sizing:border-box;user-select:none}
+  body{margin:0;background:var(--bg);font-family:"Microsoft YaHei",sans-serif;color:#fff;height:100vh;overflow:hidden}
+  .screen{display:none;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:18px}
+  .screen.on{display:flex}
+  h1{font-size:34px;text-shadow:0 3px 0 #063,0 6px 12px rgba(0,0,0,.4);margin:0}
+  .btn{background:gold;color:#5a3a00;border:none;padding:12px 32px;font-size:18px;border-radius:10px;cursor:pointer;font-weight:bold;box-shadow:0 4px 0 #b8860b}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 #b8860b}
+  .btn.small{padding:8px 18px;font-size:15px}
+  .btn:disabled{opacity:.4;cursor:default}
+  input{padding:10px;border-radius:8px;border:none;font-size:16px;width:180px;text-align:center}
+  .choice{display:flex;gap:16px}
+  .choice div{padding:14px 28px;border:3px solid transparent;border-radius:12px;background:rgba(0,0,0,.25);font-size:18px;cursor:pointer}
+  .choice div.sel{border-color:gold;background:rgba(255,215,0,.2)}
+  #roomList{background:rgba(0,0,0,.3);padding:16px 30px;border-radius:12px;line-height:2;font-size:17px}
+  #link{background:rgba(0,0,0,.4);padding:10px 16px;border-radius:8px;font-size:14px;max-width:90vw;word-break:break-all}
+  #game{display:none;height:100vh;position:relative}
+  #table{position:absolute;inset:0;background:radial-gradient(ellipse at center,#12854a,#0a5c2e)}
+  .seat{position:absolute;width:26vw;text-align:center}
+  #seat-bottom{bottom:8px;left:36vw}
+  #seat-left{left:8px;top:36vh;width:16vw}
+  #seat-top{top:6px;left:36vw}
+  #seat-right{right:8px;top:36vh;width:16vw}
+  .pname{font-size:14px;background:rgba(0,0,0,.45);border-radius:8px;padding:3px 8px;display:inline-block}
+  .flash .pname{outline:2px solid gold}
+  .tiles{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:4px}
+  .tile{width:46px;height:62px;background:var(--tile);border-radius:6px;box-shadow:0 2px 3px rgba(0,0,0,.45);cursor:default;overflow:hidden}
+  .tile.small{width:31px;height:42px}
+  .tile.back{background:#b33}
+  .tile svg{width:100%;height:100%}
+  .tf{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:bold;color:#13386b}
+  .tf b{font-size:24px;line-height:1}
+  .tf i{font-style:normal;font-size:17px;color:#c01c28}
+  .tile.small .tf b{font-size:16px}.tile.small .tf i{font-size:12px}
+  #hand .tile{cursor:pointer}
+  #hand .tile:hover{transform:translateY(-8px)}
+  #hand .tile.drawn{outline:2px solid gold}
+  #hand .tile.quesuit{opacity:.45}
+  #center{position:absolute;top:34vh;left:33vw;width:34vw;min-height:12vh;border:2px dashed rgba(255,255,255,.4);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:6px}
+  #msg{font-size:19px;font-weight:bold;text-shadow:0 2px 4px #000;text-align:center}
+  #hud{position:absolute;top:8px;left:8px;font-size:14px;background:rgba(0,0,0,.4);padding:6px 10px;border-radius:8px;line-height:1.6}
+  #actions{position:absolute;bottom:135px;left:0;right:0;text-align:center}
+  #actions button{margin:0 5px}
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:99;text-align:center;padding:20px}
+  #modal h2{font-size:38px;color:gold;text-shadow:0 0 18px #ff0;margin:0}
+  .bigtext{font-size:22px;line-height:1.7}
+  .fan{color:gold;font-size:28px;font-weight:bold}
+  .toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);padding:8px 20px;border-radius:8px;z-index:100;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="screen on" id="scLobby">
+  <h1>🀄 血战到底 · 四川麻将（联机版）</h1>
+  <div style="font-size:13px;opacity:.8">正常游戏，绝对公平，绝不暗改（真的）</div>
+  <input id="nameIpt" maxlength="8" placeholder="你的昵称">
+  <div class="choice" id="roundChoice"><div data-n="4" class="sel">4 局</div><div data-n="8">8 局</div></div>
+  <button class="btn" id="btnCreate">创建房间（你是房主）</button>
+  <div style="display:flex;gap:8px;align-items:center">
+    <input id="codeIpt" maxlength="6" placeholder="房间号">
+    <button class="btn small" id="btnJoin">加入房间</button>
+  </div>
+  <div style="font-size:12px;opacity:.7">万条筒108张 · 定缺 · 血战到底 · 缺位自动补机器人</div>
+</div>
+
+<div class="screen" id="scRoom">
+  <h1>房间 <span id="roomCode" style="color:gold"></span></h1>
+  <div id="link"></div>
+  <button class="btn small" id="btnCopy">复制邀请链接</button>
+  <div id="roomList"></div>
+  <button class="btn" id="btnStart">开始游戏</button>
+  <div style="font-size:13px;opacity:.7">把链接发给朋友，点开始后空位由机器人补齐</div>
+</div>
+
+<div id="game">
+  <div id="table"></div>
+  <div id="hud"></div>
+  <div class="seat" id="seat-top"></div>
+  <div class="seat" id="seat-left"></div>
+  <div class="seat" id="seat-right"></div>
+  <div id="center"><div id="msg"></div></div>
+  <div id="actions"></div>
+  <div class="seat" id="seat-bottom"></div>
+</div>
+
+<div id="modal"></div>
+
+<script>
+// ---------- 牌面绘制：万=汉字 条=竹节 筒=圆圈 ----------
+const SUITS=['万','条','筒'], CNUM='一二三四五六七八九';
+const DOTCOL=['#1a5fb4','#c01c28','#26a269'];
+const DOTS={1:[[50,70,26]],2:[[50,42,17],[50,98,17]],3:[[28,34,15],[50,70,16],[72,106,15]],
+ 4:[[31,42,15],[69,42,15],[31,98,15],[69,98,15]],5:[[29,38,13],[71,38,13],[50,70,15],[29,102,13],[71,102,13]],
+ 6:[[33,32,13],[67,32,13],[33,70,13],[67,70,13],[33,108,13],[67,108,13]],
+ 7:[[29,28,10],[50,28,10],[71,28,10],[33,76,13],[67,76,13],[33,112,13],[67,112,13]],
+ 8:[[32,26,11],[68,26,11],[32,55,11],[68,55,11],[32,84,11],[68,84,11],[32,113,11],[68,113,11]],
+ 9:[[29,29,12],[50,29,12],[71,29,12],[29,70,12],[50,70,12],[71,70,12],[29,111,12],[50,111,12],[71,111,12]]};
+function dots(n){return DOTS[n].map((d,i)=>`<circle cx="${d[0]}" cy="${d[1]}" r="${d[2]}" fill="${DOTCOL[n===5?i%3:(i+(n%3))%3]}" stroke="rgba(0,0,0,.15)"/>`).join('')}
+function stick(x,y,s){return `<g transform="translate(${x},${y}) scale(${s})"><rect x="-7" y="-20" width="14" height="40" rx="5" fill="#26a269" stroke="#155e35"/><rect x="-7" y="-10" width="14" height="5" fill="#9ee8b5"/><rect x="-7" y="5" width="14" height="5" fill="#9ee8b5"/></g>`}
+const BAM={1:[[50,70,1.15]],2:[[35,70,1],[65,70,1]],3:[[27,42,1],[50,70,1],[73,98,1]],
+ 4:[[32,45,.9],[68,45,.9],[32,95,.9],[68,95,.9]],5:[[30,40,.85],[70,40,.85],[50,70,.95],[30,100,.85],[70,100,.85]],
+ 6:[[33,38,.8],[67,38,.8],[33,70,.8],[67,70,.8],[33,102,.8],[67,102,.8]],
+ 7:[[26,32,.72],[50,32,.72],[74,32,.72],[35,88,.8],[65,88,.8],[35,124,.7],[65,124,.7]],
+ 8:[[33,26,.72],[67,26,.72],[33,59,.72],[67,59,.72],[33,92,.72],[67,92,.72],[33,125,.65],[67,125,.65]],
+ 9:[[27,30,.72],[50,30,.72],[73,30,.72],[27,70,.72],[50,70,.72],[73,70,.72],[27,110,.72],[50,110,.72],[73,110,.72]]};
+function bam(n){return BAM[n].map(p=>stick(p[0],p[1],p[2])).join('')}
+function face(t){
+  const s=t/10|0,n=t%10;
+  if(s===0)return `<div class="tf"><b>${CNUM[n-1]}</b><i>萬</i></div>`;
+  if(s===1)return `<svg viewBox="0 0 100 140">${bam(n)}</svg>`;
+  return `<svg viewBox="0 0 100 140">${dots(n)}</svg>`;
+}
+function tileHTML(t,cls=""){return t==null?"":`<div class="tile ${cls}">${face(t)}</div>`}
+function backHTML(n,cls="small"){return Array(n).fill(`<div class="tile back ${cls}"></div>`).join('')}
+function tileStr(t){return (t%10)+SUITS[t/10|0]}
+
+// ---------- 网络 ----------
+let ws=null, room=null, S=null, mySeat=0, lanInfo={ip:null,port:3000};
+function inviteLink(code){
+  if(lanInfo.ip) return 'http://'+lanInfo.ip+':'+lanInfo.port+'/?r='+code;
+  return location.origin+'/?r='+code;
+}
+const $=id=>document.getElementById(id);
+function connect(){
+  ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
+  ws.onmessage=e=>onMsg(JSON.parse(e.data));
+  ws.onclose=()=>{ if(S||room){toast('连接断开，正在重连…');setTimeout(()=>location.reload(),1500);} };
+}
+let pendingCreate=null;
+function send(o){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(o)); }
+function onMsg(m){
+  if(m.t==='room'){ room={code:m.code,you:m.you,rounds:m.rounds}; if(m.lanIp)lanInfo={ip:m.lanIp,port:m.port||3000}; show('scRoom'); }
+  else if(m.t==='lobby'){ if(m.lanIp)lanInfo={ip:m.lanIp,port:m.port||3000};
+    $('roomCode').textContent=m.code;
+    $('link').textContent='邀请链接（发给朋友）：'+inviteLink(m.code);
+    $('roomList').innerHTML=m.names.map((n,i)=>`座位${i+1}：${n}${i===0?'（房主）':''}`).join('<br>');
+    $('btnStart').style.display=(room&&room.you===0)?'':'none';
+  }
+  else if(m.t==='state'){ const prev=S; S=m; if($('game').style.display!=='block'){show('game');} if(S.phase!=='roundend'&&modalOpen())hideModal(); render(); }
+  else if(m.t==='msg'){ toast(m.text,2500); }
+  else if(m.t==='modal'){ showModal(m.title,m.html,m.btn?()=>{hideModal(); if(m.btn==='再来一场')location.reload(); if(m.btn==='开始'){} }:null,m.btn); }
+  else if(m.t==='roundend'){ if(room&&room.you===0&&S&&S.round<S.rounds){ setTimeout(()=>send({a:'next'}),2500);} }
+  else if(m.t==='err'){ toast(m.text); }
+}
+function toast(t,ms=1800){ const d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.remove(),ms); }
+
+// ---------- 大厅 ----------
+document.querySelectorAll('#roundChoice div').forEach(d=>d.onclick=()=>{
+  document.querySelectorAll('#roundChoice div').forEach(x=>x.classList.remove('sel')); d.classList.add('sel');
+});
+$('btnCreate').onclick=()=>{ pendingCreate=+document.querySelector('#roundChoice .sel').dataset.n; send({a:'create',rounds:pendingCreate,name:$('nameIpt').value}); };
+$('btnJoin').onclick=()=>join();
+$('codeIpt').onkeydown=e=>{if(e.key==='Enter')join()};
+function join(){ send({a:'join',code:$('codeIpt').value,name:$('nameIpt').value}); }
+$('btnStart').onclick=()=>send({a:'start'});
+$('btnCopy').onclick=()=>{ navigator.clipboard.writeText(inviteLink(room.code)).then(()=>toast('链接已复制，发给朋友吧！')); };
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on')); $('game').style.display='none';
+  if(id==='game')$('game').style.display='block'; else $(id).classList.add('on'); }
+
+// ---------- 渲染 ----------
+const seatEls=['seat-bottom','seat-right','seat-top','seat-left'];
+function render(){
+  if(!S)return;
+  for(let i=1;i<4;i++){
+    const disp=(i+S.you)%4; // 我永远在下方
+    const el=$(seatEls[i]);
+    el.innerHTML=`<span class="pname">${S.names[disp]} 缺:${SUITS[S.que[disp]]}${S.huOut[disp]?' 🏆已胡':''}</span>
+      <div class="tiles">${backHTML(S.hands[disp].length)}</div>
+      <div class="tiles">${S.melds[disp].map(m=>m.map(t=>tileHTML(t,'small')).join('')).join(' ')}</div>
+      <div class="tiles">${S.out[disp].slice(-8).map(t=>tileHTML(t,'small')).join('')}</div>`;
+  }
+  const me=S.you;
+  $(seatEls[0]).innerHTML=`<span class="pname">${S.names[me]}（你） 缺:${SUITS[S.que[me]]}${S.huOut[me]?' 🏆已胡':''}</span>
+    <div class="tiles" id="hand"></div>
+    <div class="tiles">${S.melds[me].map(m=>m.map(t=>tileHTML(t,'small')).join('')).join(' ')}</div>`;
+  const hand=$('hand');
+  const arr=S.hands[me].slice().sort((a,b)=>a-b);
+  const drawnIdx = S.myTurn && S.lastTile!=null ? arr.map((t,i)=>t).lastIndexOf(S.lastTile) : -1;
+  arr.forEach((t,idx)=>{
+    const d=document.createElement('div');
+    d.className='tile'+(idx===drawnIdx?' drawn':'')+((t/10|0)===S.que[me]?' quesuit':'');
+    d.innerHTML=face(t);
+    d.onclick=()=>{
+      if(!S.myTurn){toast('还没轮到你');return}
+      if((t/10|0)===S.que[me]){toast('缺门牌先打出去是对的，放心点');}
+      send({a:'discard',tile:t});
+    };
+    hand.appendChild(d);
+  });
+  $('hud').innerHTML=`第 <b>${S.round}/${S.rounds}</b> 局 · 剩 ${S.wall} 张<br>`+S.scores.map((s,i)=>S.names[i]+'：'+s).join('<br>');
+  document.querySelectorAll('.seat').forEach(e=>e.classList.remove('flash'));
+  if(S.phase==='play')$(seatEls[(S.turn-S.you+4)%4]).classList.add('flash');
+  $('msg').innerHTML= S.phase==='que'?'请选择定缺（下方弹窗）': S.myTurn?'轮到你出牌':(S.phase==='play'?'等待 '+S.names[S.turn]+' 出牌…':'');
+  renderActions();
+}
+function renderActions(){
+  const a=$('actions'); a.innerHTML='';
+  if(!S)return;
+  if(S.prompt && S.prompt.type==='que'){ // 定缺选择
+    ['万','条','筒'].forEach((s,q)=>{
+      const b=document.createElement('button'); b.className='btn small'; b.textContent='定缺 '+s;
+      b.onclick=()=>send({a:'que',q}); a.appendChild(b);
+    });
+    return;
+  }
+  if(!S.prompt)return;
+  const mk=(txt,act)=>{const b=document.createElement('button');b.className='btn small';b.textContent=txt;b.onclick=()=>send({a:'claim',act});a.appendChild(b)};
+  if(S.prompt.opts.hu)mk(S.prompt.type==='self'?'胡！(自摸)':'胡！','hu');
+  if(S.prompt.opts.gang)mk('杠','gang');
+  if(S.prompt.opts.peng)mk('碰','peng');
+  mk('过','pass');
+}
+function queNeeded(){
+  // 服务器 phase=que 且还没提交：用 prompt 缺失近似——服务器在 que 阶段会给每个未提交者发 prompt
+  return S.phase==='que' && S.prompt && S.prompt.opts && S.prompt.opts.que;
+}
+
+// ---------- 弹窗 ----------
+let modalCb=null;
+function modalOpen(){return $('modal').style.display==='flex'}
+function showModal(title,html,btn,btnTxt){
+  const m=$('modal');
+  m.innerHTML=`<h2>${title}</h2><div>${html}</div>`;
+  modalCb=btn||null;
+  const b=document.createElement('button');b.className='btn';b.textContent=btnTxt||'继续';
+  b.onclick=()=>{hideModal(); if(modalCb)modalCb();};
+  if(btn!==null)m.appendChild(b);
+  m.style.display='flex';
+}
+function hideModal(){$('modal').style.display='none'}
+
+// ---------- 启动 ----------
+connect();
+const rParam=new URLSearchParams(location.search).get('r');
+if(rParam){ $('codeIpt').value=rParam.toUpperCase(); toast('已填入房间号 '+rParam.toUpperCase()+'，输入昵称点加入'); }
+</script>
+</body>
+</html>

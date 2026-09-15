@@ -1,0 +1,7 @@
+{
+  "name": "scx-mahjong-online",
+  "version": "1.0.0",
+  "description": "恶搞四川麻将 联机版（零依赖）",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" }
+}
