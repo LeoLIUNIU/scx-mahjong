@@ -22,7 +22,9 @@
   #roomList{background:rgba(0,0,0,.3);padding:16px 30px;border-radius:12px;line-height:2;font-size:17px}
   #link{background:rgba(0,0,0,.4);padding:10px 16px;border-radius:8px;font-size:14px;max-width:90vw;word-break:break-all}
   #game{display:none;height:100vh;position:relative}
-  #table{position:absolute;inset:0;background:radial-gradient(ellipse at center,#12854a,#0a5c2e)}
+  #table{position:absolute;inset:0;background:#0d4f2b}
+  #scenery{position:absolute;inset:0;width:100%;height:100%;opacity:.5}
+  #overlay{position:absolute;inset:0;background:linear-gradient(rgba(10,70,40,.55),rgba(6,50,30,.65))}
   .seat{position:absolute;width:26vw;text-align:center}
   #seat-bottom{bottom:8px;left:36vw}
   #seat-left{left:8px;top:36vh;width:16vw}
@@ -80,7 +82,40 @@
 </div>
 
 <div id="game">
-  <div id="table"></div>
+  <div id="table">
+    <svg id="scenery" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#dcefe4"/><stop offset="1" stop-color="#b8d8c6"/>
+        </linearGradient>
+        <linearGradient id="riv" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#cfe6dd" stop-opacity=".8"/><stop offset="1" stop-color="#e8f4ee" stop-opacity=".9"/>
+        </linearGradient>
+      </defs>
+      <rect width="1600" height="900" fill="url(#sky)"/>
+      <circle cx="1280" cy="180" r="70" fill="#f2e2b0" opacity=".8"/>
+      <!-- 远山 -->
+      <path d="M0,520 Q200,300 420,480 T860,430 T1300,500 T1600,420 V900 H0 Z" fill="#8bb8a8" opacity=".55"/>
+      <!-- 中山 -->
+      <path d="M0,640 Q180,420 400,600 T820,560 T1240,630 T1600,540 V900 H0 Z" fill="#5f9b84" opacity=".6"/>
+      <!-- 近山与松 -->
+      <path d="M0,780 Q150,600 340,730 T760,700 T1180,760 T1600,680 V900 H0 Z" fill="#3f7a63" opacity=".7"/>
+      <path d="M1180,700 l8,-60 l8,60 z" fill="#2e5f4c"/>
+      <path d="M1150,660 q20,-14 44,-8 q-14,16 -44,8z M1196,652 q22,-8 40,4 q-18,12 -40,-4z" fill="#2e5f4c"/>
+      <!-- 小亭子 -->
+      <g transform="translate(320,660)" fill="#5a4636">
+        <path d="M-26,10 L0,-14 L26,10 Z" fill="#8a6a4a"/>
+        <rect x="-14" y="10" width="4" height="26"/><rect x="10" y="10" width="4" height="26"/><rect x="-16" y="34" width="32" height="4"/>
+      </g>
+      <!-- 江面与雾 -->
+      <path d="M0,820 Q400,780 800,820 T1600,800 V900 H0 Z" fill="url(#riv)" opacity=".5"/>
+      <ellipse cx="500" cy="700" rx="360" ry="26" fill="#fff" opacity=".35"/>
+      <ellipse cx="1100" cy="740" rx="420" ry="30" fill="#fff" opacity=".3"/>
+      <!-- 飞鸟 -->
+      <path d="M700,180 q12,-12 24,0 q12,-12 24,0 M800,140 q10,-10 20,0 q10,-10 20,0" stroke="#4a6b5d" stroke-width="3" fill="none" opacity=".7"/>
+    </svg>
+    <div id="overlay"></div>
+  </div>
   <div id="hud"></div>
   <div class="seat" id="seat-top"></div>
   <div class="seat" id="seat-left"></div>

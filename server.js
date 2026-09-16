@@ -58,6 +58,40 @@ function mkConn(sock, onMsg, onClose) {
 }
 function jsend(c, o) { if (c && !c.isClosed()) c.send(JSON.stringify(o)); }
 
+// 看门狗：每2秒检查一次，机器人该出牌而没出 → 立即补打；玩家提示超过12秒没响应 → 自动"过"
+function startWatchdog(room) {
+  if (room.wd) clearInterval(room.wd);
+  room.wd = setInterval(() => {
+    try {
+      if (room.phase === 'end') return clearInterval(room.wd);
+      if (room.phase === 'que') {
+        // 定缺阶段真人超时15秒 → 帮他随机定缺
+        if (room.queSince && Date.now() - room.queSince > 15000 && room.quePending.length) {
+          room.quePending.forEach(s => { room.que[s] = Math.random() * 3 | 0; });
+          bcast(room, { t: 'msg', text: '定缺超时，已自动随机定缺' });
+          room.quePending = [];
+          beginTurn(room, 0);
+        }
+        return;
+      }
+      if (room.phase !== 'play') return;
+      if (room.prompt) {
+        if (!room.prompt.since) room.prompt.since = Date.now();
+        else if (Date.now() - room.prompt.since > 12000) {
+          bcast(room, { t: 'msg', text: '操作超时，自动过' });
+          const wasSelf = room.prompt.type === 'self';
+          room.prompt = null;
+          if (wasSelf) return sendState(room); // 自摸过了 → 该玩家继续出牌
+          return resolveClaims(room);
+        }
+        return;
+      }
+      const p = room.players[room.turn];
+      if (p && p.bot) botDiscard(room, room.turn); // 机器人卡住 → 直接补打
+    } catch (e) { console.error('watchdog', e.message); }
+  }, 2000);
+}
+
 server.on('upgrade', (req, sock) => {
   const key = req.headers['sec-websocket-key'];
   if (!key) return sock.destroy();
@@ -230,6 +264,7 @@ function handle(ws, msg) {
 function startRound(room) {
   room.cheat = (room.round === room.rounds); // 恶搞：最后一局房主必赢最大倍数
   room.phase = 'que';
+  startWatchdog(room); // 看门狗：防止机器人卡住不出牌 / 玩家提示无人响应
   room.melds = [[], [], [], []]; room.out = [[], [], [], []];
   room.huOut = [false, false, false, false];
   room.prompt = null; room.lastTile = null;
@@ -242,6 +277,7 @@ function startRound(room) {
   room.wall = wall;
   // 定缺：机器人随机，真人弹窗选
   room.quePending = [];
+  room.queSince = Date.now();
   room.players.forEach((p, i) => {
     if (p.bot) {
       if (room.cheat && i === 0) room.que[0] = 0;
