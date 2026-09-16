@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>血战到底·恶搞四川麻将</title>
+<style>
+  :root{--bg:#0a5c2e;--panel:#0e7a3e;--tile:#fffdf5;}
+  *{box-sizing:border-box;user-select:none}
+  body{margin:0;background:var(--bg);font-family:"Microsoft YaHei",sans-serif;color:#fff;overflow:hidden;height:100vh}
+  #lobby{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:24px}
+  #lobby h1{font-size:42px;text-shadow:0 3px 0 #063,0 6px 12px rgba(0,0,0,.4)}
+  .btn{background:gold;color:#5a3a00;border:none;padding:14px 40px;font-size:20px;border-radius:10px;cursor:pointer;font-weight:bold;box-shadow:0 4px 0 #b8860b}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 #b8860b}
+  .btn.small{padding:8px 18px;font-size:15px}
+  .choice{display:flex;gap:20px}
+  .choice div{padding:18px 34px;border:3px solid transparent;border-radius:12px;background:rgba(0,0,0,.25);font-size:20px;cursor:pointer}
+  .choice div.sel{border-color:gold;background:rgba(255,215,0,.2)}
+  #game{display:none;height:100vh;position:relative}
+  #table{position:absolute;inset:0;background:#0d4f2b}
+  #scenery{position:absolute;inset:0;width:100%;height:100%;opacity:.5}
+  #overlay{position:absolute;inset:0;background:linear-gradient(rgba(10,70,40,.55),rgba(6,50,30,.65))}
+  .seat{position:absolute;width:25vw;text-align:center}
+  #seat-bottom{bottom:8px;left:37vw}
+  #seat-left{left:10px;top:38vh;width:15vw}
+  #seat-top{top:8px;left:37vw}
+  #seat-right{right:10px;top:38vh;width:15vw}
+  .pname{font-size:15px;background:rgba(0,0,0,.4);border-radius:8px;padding:4px;display:inline-block}
+  .flash{outline:3px solid gold}
+  .tiles{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:4px}
+  .tile{width:44px;height:60px;background:var(--tile);border-radius:6px;color:#222;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;box-shadow:0 2px 3px rgba(0,0,0,.4);cursor:default;position:relative}
+  .tile.back{background:#c33;color:#c33;box-shadow:inset 0 0 0 2px #fff}
+  .tile svg{width:100%;height:100%}
+  .tf{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:bold;color:#13386b}
+  .tf b{font-size:24px;line-height:1}
+  .tf i{font-style:normal;font-size:17px;color:#c01c28}
+  .tile.small .tf b{font-size:16px}.tile.small .tf i{font-size:12px}
+  .tile.small{width:30px;height:42px;font-size:17px}
+  #hand .tile{cursor:pointer}
+  #hand .tile:hover{transform:translateY(-8px)}
+  #center{position:absolute;top:34vh;left:34vw;width:32vw;height:14vh;border:2px dashed rgba(255,255,255,.4);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column}
+  #discard-area{position:absolute;top:22vh;left:30vw;width:40vw;height:11vh}
+  #msg{font-size:22px;font-weight:bold;text-shadow:0 2px 4px #000;min-height:30px}
+  #hud{position:absolute;top:10px;left:10px;font-size:15px;background:rgba(0,0,0,.4);padding:8px 12px;border-radius:8px;line-height:1.7}
+  #actions{position:absolute;bottom:130px;left:0;right:0;text-align:center;display:none;gap:10px}
+  #actions button{margin:0 6px}
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:99;text-align:center}
+  #modal h2{font-size:46px;color:gold;text-shadow:0 0 20px #ff0}
+  .cheatfx{animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .bigtext{font-size:26px;line-height:1.8}
+  .fan{color:gold;font-size:30px;font-weight:bold}
+  .float{position:absolute;font-size:26px;color:gold;font-weight:bold;animation:up 1.4s forwards;pointer-events:none;text-shadow:0 2px 6px #000}
+  @keyframes up{to{transform:translateY(-90px);opacity:0}}
+</style>
+</head>
+<body>
+
+<div id="lobby">
+  <h1>🀄 血战到底 · 四川麻将 🀄</h1>
+  <div style="font-size:14px;opacity:.8">（正常游戏，绝对公平，绝不暗改）</div>
+  <div class="choice" id="roundChoice">
+    <div data-n="4">4 局</div>
+    <div data-n="8">8 局</div>
+  </div>
+  <button class="btn" id="btnCreate">创建房间（你是房主）</button>
+  <div style="max-width:460px;font-size:13px;opacity:.7">规则：万条筒108张 · 定缺 · 血战到底 · 人机对战3名AI · 支持碰杠胡</div>
+</div>
+
+<div id="game">
+  <div id="table">
+    <svg id="scenery" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#dcefe4"/><stop offset="1" stop-color="#b8d8c6"/>
+        </linearGradient>
+        <linearGradient id="riv" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#cfe6dd" stop-opacity=".8"/><stop offset="1" stop-color="#e8f4ee" stop-opacity=".9"/>
+        </linearGradient>
+      </defs>
+      <rect width="1600" height="900" fill="url(#sky)"/>
+      <circle cx="1280" cy="180" r="70" fill="#f2e2b0" opacity=".8"/>
+      <path d="M0,520 Q200,300 420,480 T860,430 T1300,500 T1600,420 V900 H0 Z" fill="#8bb8a8" opacity=".55"/>
+      <path d="M0,640 Q180,420 400,600 T820,560 T1240,630 T1600,540 V900 H0 Z" fill="#5f9b84" opacity=".6"/>
+      <path d="M0,780 Q150,600 340,730 T760,700 T1180,760 T1600,680 V900 H0 Z" fill="#3f7a63" opacity=".7"/>
+      <path d="M1180,700 l8,-60 l8,60 z" fill="#2e5f4c"/>
+      <path d="M1150,660 q20,-14 44,-8 q-14,16 -44,8z M1196,652 q22,-8 40,4 q-18,12 -40,-4z" fill="#2e5f4c"/>
+      <g transform="translate(320,660)" fill="#5a4636">
+        <path d="M-26,10 L0,-14 L26,10 Z" fill="#8a6a4a"/>
+        <rect x="-14" y="10" width="4" height="26"/><rect x="10" y="10" width="4" height="26"/><rect x="-16" y="34" width="32" height="4"/>
+      </g>
+      <path d="M0,820 Q400,780 800,820 T1600,800 V900 H0 Z" fill="url(#riv)" opacity=".5"/>
+      <ellipse cx="500" cy="700" rx="360" ry="26" fill="#fff" opacity=".35"/>
+      <ellipse cx="1100" cy="740" rx="420" ry="30" fill="#fff" opacity=".3"/>
+      <path d="M700,180 q12,-12 24,0 q12,-12 24,0 M800,140 q10,-10 20,0 q10,-10 20,0" stroke="#4a6b5d" stroke-width="3" fill="none" opacity=".7"/>
+    </svg>
+    <div id="overlay"></div>
+  </div>
+  <div id="hud"></div>
+  <div class="seat" id="seat-top"></div>
+  <div class="seat" id="seat-left"></div>
+  <div class="seat" id="seat-right"></div>
+  <div id="discard-area"><div class="tiles" id="discards"></div></div>
+  <div id="center"><div id="msg"></div><button class="btn small" id="btnPass" style="display:none">跳过</button></div>
+  <div id="actions">
+    <button class="btn small" id="btnHu">胡！</button>
+    <button class="btn small" id="btnGang">杠</button>
+  </div>
+  <div class="seat" id="seat-bottom"></div>
+</div>
+
+<div id="modal"></div>
+
+<script>
+const SUITS=["万","条","筒"];
+const NAMES=["你(房主)","老王","李婶","张三"];
+const seatEls=["seat-bottom","seat-right","seat-top","seat-left"]; // 0=你 下,1右,2上,3左 (逆时针)
+let G=null;
+
+document.querySelectorAll("#roundChoice div").forEach(d=>d.onclick=()=>{
+  document.querySelectorAll("#roundChoice div").forEach(x=>x.classList.remove("sel"));
+  d.classList.add("sel");
+});
+document.querySelector("#roundChoice div").classList.add("sel");
+
+document.getElementById("btnCreate").onclick=start;
+
+function start(){
+  const total=+document.querySelector("#roundChoice .sel").dataset.n;
+  G={total,round:1,scores:[0,0,0,0]};
+  document.getElementById("lobby").style.display="none";
+  document.getElementById("game").style.display="block";
+  newRound();
+}
+
+function newRound(){
+  const cheat = (G.round===G.total); // 最后一局，房主开挂
+  // 定缺随机
+  G.que=[0,1,2,3].map(()=>Math.floor(Math.random()*3));
+  G.hands=[[],[],[],[]]; G.melds=[[],[],[],[]]; G.out=[[],[],[],[]];
+  G.discards=[]; G.turn=0; G.drawn=null; G.over=false; G.cheat=cheat; G.gangFlag=false;
+  const wall=[];
+  for(let s=0;s<3;s++)for(let n=1;n<=9;n++)for(let c=0;c<4;c++)wall.push(s*10+n);
+  shuffle(wall);
+  for(let i=0;i<4;i++){
+    G.hands[i]=wall.splice(0,13);
+    if(cheat&&i===0){ // 房主最后一局：天胡清一色龙七对(筒)
+      G.hands[0]=[2,2,2,2,3,3,4,4,5,5,6,6,9].map(x=>20+x);
+      G.que[0]=Math.floor(Math.random()*2); // 万或条
+      // 从墙里换掉给牌数保持：直接注入即可(恶搞游戏不管墙牌数守恒)
+    }
+    sortHand(i);
+  }
+  G.wall=wall;
+  updateHUD();
+  render();
+  if(cheat){
+    showModal("最后一局","🎉 恭喜房主触发隐藏福利！","【天胡 · 清一色龙七对 · 32番】<br>系统：检测到房主充值信仰+999<br><span class='fan'>×32 倍结算！</span>",()=>{
+      hideModal();
+      setTimeout(()=>{G.drawn=drawTile(0);render();msg("你摸到最后一张——天胡！");setTimeout(()=>doHu(0,0,true),1200);},800);
+    });
+  }else{
+    msg("第 "+G.round+"/"+G.total+" 局开始，请出牌");
+    G.drawn=drawTile(0);render();
+  }
+}
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+function sortHand(i){G.hands[i].sort((a,b)=>a-b);}
+function drawTile(i){
+  if(!G.wall.length)return null;
+  const t=G.wall.pop();
+  if(G.cheat&&i===0){ // 恶搞：房主最后一局每次摸牌都听牌补张——直接给胡牌张
+    return 29; // 9筒，凑成龙七对
+  }
+  return t;
+}
+function tileStr(t){return t%10+SUITS[Math.floor(t/10)];}
+// 真实牌面：万=汉字 条=竹节 筒=圆圈
+const DOTCOL=['#1a5fb4','#c01c28','#26a269'];
+const DOTS={1:[[50,70,26]],2:[[50,42,17],[50,98,17]],3:[[28,34,15],[50,70,16],[72,106,15]],
+ 4:[[31,42,15],[69,42,15],[31,98,15],[69,98,15]],5:[[29,38,13],[71,38,13],[50,70,15],[29,102,13],[71,102,13]],
+ 6:[[33,32,13],[67,32,13],[33,70,13],[67,70,13],[33,108,13],[67,108,13]],
+ 7:[[29,28,10],[50,28,10],[71,28,10],[33,76,13],[67,76,13],[33,112,13],[67,112,13]],
+ 8:[[32,26,11],[68,26,11],[32,55,11],[68,55,11],[32,84,11],[68,84,11],[32,113,11],[68,113,11]],
+ 9:[[29,29,12],[50,29,12],[71,29,12],[29,70,12],[50,70,12],[71,70,12],[29,111,12],[50,111,12],[71,111,12]]};
+function dots(n){return DOTS[n].map((d,i)=>`<circle cx="${d[0]}" cy="${d[1]}" r="${d[2]}" fill="${DOTCOL[n===5?i%3:(i+(n%3))%3]}" stroke="rgba(0,0,0,.15)"/>`).join('')}
+function stick(x,y,s){return `<g transform="translate(${x},${y}) scale(${s})"><rect x="-7" y="-20" width="14" height="40" rx="5" fill="#26a269" stroke="#155e35"/><rect x="-7" y="-10" width="14" height="5" fill="#9ee8b5"/><rect x="-7" y="5" width="14" height="5" fill="#9ee8b5"/></g>`}
+const BAM={1:[[50,70,1.15]],2:[[35,70,1],[65,70,1]],3:[[27,42,1],[50,70,1],[73,98,1]],
+ 4:[[32,45,.9],[68,45,.9],[32,95,.9],[68,95,.9]],5:[[30,40,.85],[70,40,.85],[50,70,.95],[30,100,.85],[70,100,.85]],
+ 6:[[33,38,.8],[67,38,.8],[33,70,.8],[67,70,.8],[33,102,.8],[67,102,.8]],
+ 7:[[26,32,.72],[50,32,.72],[74,32,.72],[35,88,.8],[65,88,.8],[35,124,.7],[65,124,.7]],
+ 8:[[33,26,.72],[67,26,.72],[33,59,.72],[67,59,.72],[33,92,.72],[67,92,.72],[33,125,.65],[67,125,.65]],
+ 9:[[27,30,.72],[50,30,.72],[73,30,.72],[27,70,.72],[50,70,.72],[73,70,.72],[27,110,.72],[50,110,.72],[73,110,.72]]};
+function bam(n){return BAM[n].map(p=>stick(p[0],p[1],p[2])).join('')}
+const CNUM='一二三四五六七八九';
+function face(t){
+  const s=Math.floor(t/10),n=t%10;
+  if(s===0)return `<div class="tf"><b>${CNUM[n-1]}</b><i>萬</i></div>`;
+  if(s===1)return `<svg viewBox="0 0 100 140">${bam(n)}</svg>`;
+  return `<svg viewBox="0 0 100 140">${dots(n)}</svg>`;
+}
+function tileHTML(t,cls=""){return t==null?"":`<div class="tile ${cls}">${face(t)}</div>`;}
+
+function updateHUD(){
+  document.getElementById("hud").innerHTML=
+    `第 <b>${G.round}/${G.total}</b> 局 · 剩余 ${G.wall?G.wall.length:0} 张<br>`+
+    G.scores.map((s,i)=>NAMES[i]+"："+s).join("<br>");
+}
+
+function render(){
+  // 三家AI显示背面数量 + 定缺 + 牌河
+  for(let i=1;i<4;i++){
+    const el=document.getElementById(seatEls[i]);
+    el.innerHTML=`<span class="pname">${NAMES[i]} 定缺:${SUITS[G.que[i]]}${G.out[i]?" 💀出局":""}</span>
+      <div class="tiles">${G.hands[i].map(()=>`<div class="tile small back">🀄</div>`).join("")}</div>
+      <div class="tiles">${G.melds[i].map(m=>m.tiles.map(t=>tileHTML(t,"small")).join("")).join(" ")}</div>
+      <div class="tiles">${G.out[i].slice(-8).map(t=>tileHTML(t,"small")).join("")}</div>`;
+  }
+  // 我方
+  const me=document.getElementById(seatEls[0]);
+  me.innerHTML=`<span class="pname">${NAMES[0]} 定缺:${SUITS[G.que[0]]}${G.out[0]?" 💀出局":""}</span>
+    <div class="tiles" id="hand"></div>
+    <div class="tiles">${G.melds[0].map(m=>m.tiles.map(t=>tileHTML(t,"small")).join("")).join(" ")}</div>`;
+  const hand=document.getElementById("hand");
+  G.hands[0].forEach((t,idx)=>{
+    const d=document.createElement("div");
+    d.className="tile"+(G.drawn===t&&G.hands[0].lastIndexOf(t)===idx?" glow":"");
+    d.style.cssText=G.drawn&&G.hands[0].lastIndexOf(t)===idx&&idx===G.hands[0].length-1?"outline:2px solid gold":"";
+    d.textContent=tileStr(t);
+    d.onclick=()=>discardSelf(t);
+    if(Math.floor(t/10)===G.que[0]) d.style.opacity=.45;
+    hand.appendChild(d);
+  });
+  document.getElementById("discards").innerHTML=G.discards.slice(-14).map(t=>tileHTML(t,"small")).join("");
+  updateHUD();
+  // 当前行动高亮
+  document.querySelectorAll(".seat").forEach(e=>e.classList.remove("flash"));
+  if(!G.over)document.getElementById(seatEls[G.turn]).classList.add("flash");
+}
+function msg(s){document.getElementById("msg").innerHTML=s;}
+
+function canHu(hand,winTile){ // hand含winTile
+  const cnt={};hand.forEach(t=>cnt[t]=(cnt[t]||0)+1);
+  const all=Object.entries(cnt).map(([t,c])=>[+t,c]);
+  // 七对
+  if(hand.length===14&&all.every(([,c])=>c%2===0))return "七对";
+  // 普通胡：1雀头+面子
+  for(const [pairT] of all){
+    if(cnt[pairT]>=2){
+      cnt[pairT]-=2;
+      let ok=true;
+      for(const [t,c] of Object.entries(cnt)){
+        const tt=+t;
+        if(c>=3){cnt[tt]-=3;}
+        if(cnt[tt]>0){
+          const n=tt%10;
+          if(n>7||cnt[tt+1]===undefined||cnt[tt+2]===undefined||!cnt[tt+1]||!cnt[tt+2]){ok=false;break;}
+          cnt[tt+1]--;cnt[tt+2]--;cnt[tt]--;
+          if(cnt[tt]>0){ok=false;break;}
+        }
+      }
+      cnt[pairT]+=2;
+      if(ok)return "平胡";
+      // 恢复
+      for(const t of hand)cnt[t]=(cnt[t]||0)+0;
+      const c2={};hand.forEach(t=>c2[t]=(c2[t]||0)+1);
+      for(const k in cnt)cnt[k]=c2[k];
+    }
+  }
+  return null;
+}
+function calcFan(hand,melds,huType,winTile,selfDraw){
+  let fan=huType==="七对"?4:1;
+  const suitSet=new Set(hand.map(t=>Math.floor(t/10)));
+  if(suitSet.size===1&&melds.length===0)fan*=4; // 清一色
+  if(huType==="七对"){
+    const c={};hand.forEach(t=>c[t]=(c[t]||0)+1);
+    if(Object.values(c).some(v=>v===4))fan*=2; // 龙七对
+  }
+  if(selfDraw)fan*=2; // 自摸
+  return fan;
+}
+
+function discardSelf(t){
+  if(G.over||G.turn!==0||G.out[0])return;
+  if(Math.floor(t/10)===G.que[0]){msg("缺门牌不能留着！必须先打缺门 😈");return;}
+  const i=G.hands[0].indexOf(t);
+  if(i<0)return;
+  G.hands[0].splice(i,1);
+  G.drawn=null;
+  afterDiscard(0,t);
+}
+
+function afterDiscard(p,t){
+  G.discards.push(t);
+  G.out[p].push(t);
+  render();
+  // 其他家检查：胡 > 碰/杠（简化AI）
+  for(let k=1;k<=3;k++){
+    const q=(p+k)%4;
+    if(G.out[q])continue;
+    if(G.cheat&&q===0)continue;
+    const h=G.hands[q];
+    const cnt=h.filter(x=>x===t).length;
+    if(canHu([...h,t],t)){setTimeout(()=>doHu(q,t,false),600);return;}
+    if(q===0&&cnt>=2){msg("你可以碰/杠 "+tileStr(t));/* 简化：人也不强制，直接AI逻辑跳过 */}
+    if(q>0&&cnt>=3){setTimeout(()=>{doPengGang(q,t,cnt)},500);return;}
+    if(q>0&&cnt===2&&Math.random()<0.5){setTimeout(()=>{doPeng(q,t)},500);return;}
+  }
+  nextTurn(p);
+}
+function nextTurn(p){
+  let q=(p+1)%4,n=0;
+  while(G.out[q]&&n<4){q=(q+1)%4;n++;}
+  if(n>=4){endRound("流局");return;}
+  G.turn=q;
+  render();
+  if(q===0){
+    G.drawn=drawTile(0);
+    if(G.cheat){render();msg("你摸到 "+tileStr(G.drawn)+" ……这手感不对劲");setTimeout(()=>doHu(0,G.drawn,true),900);return;}
+    render();
+    const hu=canHu(G.hands[0].concat(G.drawn),G.drawn);
+    if(hu){msg("你自摸 "+tileStr(G.drawn)+"！可以胡！");showActions(true,hu,true);return;}
+    msg("你摸到 "+tileStr(G.drawn)+"，请出牌");
+  }else{
+    setTimeout(aiTurn,700);
+  }
+}
+function showActions(hu,type,self){
+  G.pendingHu={type,self};
+  document.getElementById("actions").style.display="block";
+}
+document.getElementById("btnHu").onclick=()=>{
+  document.getElementById("actions").style.display="none";
+  doHu(0,G.drawn,true);
+};
+document.getElementById("btnPass").onclick=()=>{
+  document.getElementById("actions").style.display="none";
+  msg("你选择不胡，请出牌");
+};
+document.getElementById("btnGang").onclick=()=>msg("杠就不做了，直接胡吧 😆");
+
+function doPeng(q,t){
+  const h=G.hands[q];
+  let rm=2;for(let i=0;i<h.length&&rm;i++){if(h[i]===t){h.splice(i,1);rm--;}}
+  G.melds[q].push({tiles:[t,t,t]});
+  msg(NAMES[q]+" 碰了 "+tileStr(t));
+  G.turn=q;sortHand(q);render();
+  setTimeout(()=>{const d=h[Math.floor(Math.random()*h.length)];h.splice(h.indexOf(d),1);afterDiscard(q,d);},700);
+}
+function doPengGang(q,t,cnt){
+  const h=G.hands[q];
+  let rm=3;for(let i=0;i<h.length&&rm;i++){if(h[i]===t){h.splice(i,1);rm--;}}
+  G.melds[q].push({tiles:[t,t,t,t]});
+  msg(NAMES[q]+" 杠了 "+tileStr(t)+"！");
+  G.turn=q;render();
+  h.push(drawTile(q));sortHand(q);
+  setTimeout(()=>{const d=h[Math.floor(Math.random()*h.length)];h.splice(h.indexOf(d),1);afterDiscard(q,d);},700);
+}
+
+function aiTurn(){
+  if(G.over)return;
+  const q=G.turn;
+  if(G.out[q]){nextTurn(q);return;}
+  const h=G.hands[q];
+  const t=drawTile(q);
+  if(t===null){endRound("流局");return;}
+  h.push(t);
+  const hu=canHu(h.slice(),t);
+  if(hu){doHu(q,t,true);return;}
+  // 打缺门
+  let d=h.find(x=>Math.floor(x/10)===G.que[q]);
+  if(d===undefined)d=h[Math.floor(Math.random()*h.length)];
+  h.splice(h.indexOf(d),1);
+  msg(NAMES[q]+" 打出 "+tileStr(d));
+  afterDiscard(q,d);
+}
+
+function doHu(winner,winTile,selfDraw){
+  if(G.over)return;
+  const hand=G.hands[winner].concat(winTile!==null&&selfDraw===false?[winTile]:[]);
+  const finalHand=selfDraw?G.hands[winner]:G.hands[winner].concat([winTile]);
+  let huType=canHu(finalHand,winTile)||"平胡";
+  let fan=calcFan(finalHand,G.melds[winner],huType,winTile,selfDraw);
+  if(G.cheat&&winner===0){huType="清一色龙七对 · 天胡";fan=32;}
+  const base=2, score=fan*base*3;
+  // 血战：未出局者各输，赢家赢三份
+  let alive=[0,1,2,3].filter(i=>!G.out[i]&&i!==winner);
+  alive.forEach(i=>G.scores[i]-=fan*base*(i===0&&!G.cheat?1:1));
+  G.scores[winner]+=fan*base*alive.length;
+  G.over=true;
+  const isMe=winner===0;
+  let extra="";
+  if(G.cheat&&winner===0){
+    extra=`<div class="bigtext">🏆 房主觉醒 · 神仙手段 🏆</div>
+    <div class="bigtext">【${huType}】</div><div class="fan">${fan} 番 × ${alive.length}家 = +${fan*base*alive.length}分</div>
+    <div class="bigtext">AI们：？？？<br>老王：这绝对有猫腻！<br>李婶：我不玩了我要报警！<br>张三：房主你出千！！</div>
+    <div style="font-size:13px;opacity:.7">(本恶搞游戏：最后一局房主必赢最大倍数 😏)</div>`;
+  }else{
+    extra=`<div class="bigtext">${NAMES[winner]} ${selfDraw?"自摸":"胡 "+tileStr(winTile)} 【${huType}】</div>
+    <div class="fan">${fan} 番 · 得 ${fan*base*alive.length} 分</div>`;
+  }
+  showModal(isMe?"🎉 你赢了！":"💀 你输了",null,extra,nextStep);
+  render();
+}
+function endRound(reason){
+  G.over=true;
+  showModal("本局结束",reason,"荒庄，不计分",nextStep);
+}
+function nextStep(){
+  hideModal();
+  if(G.round>=G.total){
+    let champ=0;G.scores.forEach((s,i)=>{if(s>G.scores[champ])champ=i;});
+    const prank=champ===0&&G.total>=4?`<div class="bigtext">房主获胜秘诀：最后一局暗改牌 😈</div>`:"";
+    showModal("🏆 全场结束 🏆",null,
+      G.scores.map((s,i)=>`<div class="bigtext">${NAMES[i]}：${s} 分</div>`).join("")+
+      `<div class="fan">冠军：${NAMES[champ]}</div>`+prank+
+      `<br><button class="btn" onclick="location.reload()">再来一局</button>`,null,true);
+  }else{
+    G.round++;newRound();
+  }
+}
+
+function showModal(title,sub,html,cb,noHide){
+  const m=document.getElementById("modal");
+  m.innerHTML=`<h2>${title}</h2>${sub?`<div class="bigtext">${sub}</div>`:""}<div>${html}</div>`;
+  if(!noHide){
+    const b=document.createElement("button");b.className="btn";b.textContent="继续";
+    b.onclick=cb;b.style.marginTop="10px";
+    m.appendChild(b);
+  }
+  m.style.display="flex";
+}
+function hideModal(){document.getElementById("modal").style.display="none";}
+</script>
+</body>
+</html>
